@@ -49,8 +49,11 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		
 		MoveEnemy(); // 敵機の制御
 		MoveAttack(); // 攻撃の制御
-		StageMap(); // ステージマップ
-		DrawParameter(); // パラメーターを表示
+		DrawGraph(0, 0, imgSky, FALSE);
+		DrawGraph(0, 0, imgGra, TRUE);
+		DrawGraph(0, 0, imgMoon, TRUE);
+		DrawGraph(0, 0, imgMountain, TRUE);
+		DrawGraph(0, 0, imgGround, TRUE);
 
 		timer++; // タイマーをカウント
 		switch (scene) // シーンごとに処理を分岐
@@ -131,6 +134,8 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 			break;
 		}
 		
+		DrawGraph(0, 0, imgSakura, TRUE);
+
 		// スコア、ハイスコア、ステージ数の表示
 		DrawText(10, 10, "SCORE %07d", score, 0xffffff, 30);
 		DrawText(WIDTH - 220, 10, "HI-SC %07d", hisco, 0xffffff, 30);
@@ -159,6 +164,7 @@ void InitGame(void)
 	imgSamurai = LoadGraphWithCheck("素材フォルダー/.png");
 	imgAttack = LoadGraphWithCheck("素材フォルダー/.png");
 	// 敵の画像の読み込み
+	
 	for (int i = 0; i < IMG_ENEMY_MAX; i++)
 	{
 		char file[] = "image/enemy*.png";
@@ -173,7 +179,11 @@ void InitGame(void)
 	bgm = LoadSoundMemWithCheck("sound/.mp3");
 }
 
+// 背景を描画する
+
+
 // ゲーム開始時の初期値を代入する関数
+
 void InitVariable(void)
 {
 	player.x = WIDTH / 2;
@@ -190,7 +200,8 @@ void InitVariable(void)
 }
 
 // 中心座標を指定して画像を表示する関数
-void drawImage(int img, int x, int y)
+
+void DrawImage(int img, int x, int y)
 {
 	int w, h;
 	GetGraphSize(img, &w, &h);
@@ -198,17 +209,19 @@ void drawImage(int img, int x, int y)
 }
 
 // 自機を動かす関数
-void movePlayer(void)
+
+void MovePlayer(void)
 {
 	if (CheckHitKey(KEY_INPUT_SPACE))
 	{
 
 	}
 	if (noDamageFrame > 0) { noDamageFrame--; } // 無敵時間のカウント
-	if (noDamageFrame % 4 < 2) { drawImage(imgSamurai, player.x, player.y); } // 自機の描画
+	if (noDamageFrame % 4 < 2) { DrawImage(imgSamurai, player.x, player.y); } // 自機の描画
 }
 
 // 攻撃のセット
+
 void SetAttack(void)
 {
 	int x = player.x;
@@ -228,6 +241,7 @@ void SetAttack(void)
 }
 
 // 攻撃の移動
+
 void MoveAttack(void)
 {
 	for (int i = 0; i < ATTACK_MAX; i++)
@@ -241,6 +255,7 @@ void MoveAttack(void)
 }
 
 // 敵をセットする
+
 int SetEnemy(int x, int y, int vx, int vy, int ptn, int img, int hp)
 {
 	for (int i = 0; i < ENEMY_MAX; i++) {
@@ -260,7 +275,8 @@ int SetEnemy(int x, int y, int vx, int vy, int ptn, int img, int hp)
 }
 
 // 敵を動かす
-void moveEnemy(void)
+
+void MoveEnemy(void)
 {
 	for (int i = 0; i < ENEMY_MAX; i++) {
 		if (enemy[i].state == 0) { continue; } // 空いている配列なら処理しない
@@ -276,5 +292,85 @@ void moveEnemy(void)
 				enemy[i].vy = -4;
 			}
 		}
+		enemy[i].x += enemy[i].vx; // ┬敵機の移動
+		enemy[i].y += enemy[i].vy; // ┘
+		DrawImage(enemy[i].image, enemy[i].x, enemy[i].y); // 敵機の描画
+		// 画面外に出たか？
+		if (enemy[i].x < -200 || WIDTH + 200 < enemy[i].x || enemy[i].y < -200 || HEIGHT + 200 < enemy[i].y) { enemy[i].state = 0; }
+		// 当たり判定のアルゴリズム
+		for (int j = 0; j < ATTACK_MAX; j++)
+		{
+			if (attack[j].state == 0) { continue; }
+			int dx = abs((int)(enemy[i].x - attack[j].x)); // ┬中心座標間のピクセル数
+			int dy = abs((int)(enemy[i].y - attack[j].y)); // ┘
+			if (dx < enemy[i].wid / 2 + attack[j].wid / 2 && dy < enemy[i].hei / 2 + attack[j].hei / 2)
+			{
+				DamageEnemy(i,10);
+			}
+		}
+		if (noDamageFrame == 0) // 無敵状態でないとき、自分とヒットチェック
+		{
+			int dx = abs((int)(enemy[i].x - player.x)); // ┬中心座標間のピクセル数
+			int dy = abs((int)(enemy[i].y - player.y)); // ┘
+			if (dx < enemy[i].wid / 2 + player.wid / 2 && dy < enemy[i].hei / 2 + player.hei / 2)
+			{
+				if (player.hp > 0) { player.hp--; } // シールドを減らす
+				noDamageFrame = FPS * 2; // 無敵状態をセット
+			}
+		}
 	}
+}
+
+// 敵のシールドを減らす（ダメージを与える）
+
+void DamageEnemy(int n, int dmg)
+{
+	score += 100; // スコア加算
+	if (score > hisco) { hisco = score; } // ハイスコアの更新
+	enemy[n].hp -= dmg; // HPを減らす
+	if (enemy[n].hp <= 0)
+	{
+		enemy[n].state = 0; // HP0以下で消す
+		if (distance == STAGE_DISTANCE)
+		{
+			StopSoundMem(bgm); // BGM停止
+			scene = CLEAR;
+			timer = 0;
+		}
+	}
+}
+
+// 影を付けた文字列と値を表示する変数
+void DrawText(int x, int y, const char* txt, int val, int col, int siz)
+{
+	SetFontSize(siz); // フォントの大きさを指定
+	DrawFormatString(x + 1, y + 1, 0x000000, txt, val); // 黒で文字列を表示
+	DrawFormatString(x, y, col, txt, val); // 引数の色で文字列を表示
+}
+
+// 文字列をセンタリングして表示する関数
+void DrawTextC(int x, int y, const char* txt, int col, int siz)
+{
+	SetFontSize(siz);
+	int strWidth = GetDrawStringWidth(txt, strlen(txt));
+	x -= strWidth / 2;
+	y -= siz / 2;
+	DrawString(x + 1, y + 1,txt, 0x000000);
+	DrawString(x, y, txt, col);
+}
+
+
+// 画像の読み込み、読み込み失敗時は通知
+int LoadGraphWithCheck(const char* file)
+{
+	int res = LoadGraph(file);
+	if (res == -1) { MessageBox(GetMainWindowHandle(), file, "画像の読み込みに失敗", MB_OK | MB_ICONSTOP); }
+	return res;
+}
+
+int LoadSoundMemWithCheck(const char* file)
+{
+	int res = LoadSoundMem(file);
+	if (res == -1) { MessageBox(GetMainWindowHandle(), file, "画像の読み込みに失敗", MB_OK | MB_ICONSTOP); }
+	return res;
 }

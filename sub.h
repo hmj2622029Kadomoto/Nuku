@@ -25,13 +25,10 @@ void SetAttack(void);
 void MoveAttack(void);
 int SetEnemy(int x, int y, int vx, int vy, int ptn, int img, int hp);
 void MoveEnemy(void);
-void StageMap(void);
 void DamageEnemy(int n, int dmg);
 void DrawText(int x, int y, const char* txt, int val, int col, int siz);
-void DrawParameter(void);
 void DrawTextC(int x, int y, const char* txt, int col, int siz);
 
 
-int HealByStage(int heal);
 int LoadGraphWithCheck(const char* file);
 int LoadSoundMemWithCheck(const char* file);
