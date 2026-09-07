@@ -161,8 +161,8 @@ void InitGame(void)
 	imgSky = LoadGraphWithCheck("素材フォルダー/Sky.png");
 	imgMoon = LoadGraphWithCheck("素材フォルダー/Moon.png");
 	// 自分とその攻撃の画像の読み込み
-	imgSamurai = LoadGraphWithCheck("素材フォルダー/.png");
-	imgAttack = LoadGraphWithCheck("素材フォルダー/.png");
+	imgSamurai = LoadGraphWithCheck("素材フォルダー/Samurai.png");
+	imgAttack = LoadGraphWithCheck("素材フォルダー/Attack.png");
 	// 敵の画像の読み込み
 	
 	for (int i = 0; i < IMG_ENEMY_MAX; i++)
@@ -186,10 +186,8 @@ void InitGame(void)
 
 void InitVariable(void)
 {
-	player.x = WIDTH / 2;
-	player.y = HEIGHT / 2;
-	player.vx = 5;
-	player.vy = 5;
+	player.x = WIDTH / 6;
+	player.y = HEIGHT * 2 / 3;
 	player.hp = PLAYER_HP_MAX;
 	GetGraphSize(imgSamurai, &player.wid, &player.hei); // 自機の画像の幅と高さを代入
 	for (int i = 0; i < ENEMY_MAX; i++) { enemy[i].state = 0; } // 全ての敵を存在しない状態にする
@@ -212,12 +210,13 @@ void DrawImage(int img, int x, int y)
 
 void MovePlayer(void)
 {
+	int ix; // 縦54横64*7
+	ix = player.timer * 52;
 	if (CheckHitKey(KEY_INPUT_SPACE))
 	{
-
 	}
 	if (noDamageFrame > 0) { noDamageFrame--; } // 無敵時間のカウント
-	if (noDamageFrame % 4 < 2) { DrawImage(imgSamurai, player.x, player.y); } // 自機の描画
+	if (noDamageFrame % 4 < 2) { DrawRectGraph(player.x-26, player.y-27,ix,0,52,64,imgSamurai,TRUE,FALSE); } // 自機の描画
 }
 
 // 攻撃のセット
