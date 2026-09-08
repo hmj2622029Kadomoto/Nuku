@@ -14,6 +14,8 @@ struct OBJECT // 自分や敵用
 	int hei; // 画像の高さ
 	int hp; // HP（耐久力）
 	int timer; // タイマー
+	int attackTimer; // タイマー
+	int idleTimer; // タイマー
 };
 
 // 関数プロトタイプ宣言
