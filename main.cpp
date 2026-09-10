@@ -15,7 +15,7 @@ enum { TITLE, PLAY, OVER, CLEAR }; // シーンを分けるための列挙定数
 
 // グローバル変数
 int imgSakura, imgGround, imgMoon, imgMountain, imgSky, imgGra; // 背景画像
-int imgSamurai, imgAttack; // 自分と攻撃の画像
+int imgSamurai, imgAttack,imgAttack2; // 自分と攻撃の画像
 int imgEnemy[IMG_ENEMY_MAX]; // 敵の画像
 int bgm, jinOver, jinClear, seAttack; // 音の読み込み用
 int distance = 0; // ステージ終端までの距離
@@ -26,9 +26,11 @@ int noDamageFrame; // 無敵状態
 int scene = TITLE; // シーンを管理
 int timer = 0; // 時間の進行を管理
 bool isAttacking = false;
+bool isAttacking2 = false;
 
 struct OBJECT player; // 自分用の構造体変数
 struct OBJECT attack[ATTACK_MAX]; // 自分用の構造体変数
+struct OBJECT attack2[ATTACK_MAX]; // 自分用の構造体変数
 struct OBJECT enemy[ENEMY_MAX]; // 自分用の構造体変数
 
 int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
@@ -54,8 +56,8 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		DrawGraph(0, 0, imgMountain, TRUE);
 		DrawGraph(0, 0, imgGround, TRUE);
 		MoveEnemy(); // 敵機の制御
-		MoveAttack(); // 攻撃の制御
 		DrawGraph(0, 0, imgSakura, TRUE);
+		DrawFormatString(0, 0, 0xffffff, "distance = %d",distance);
 
 		timer++; // タイマーをカウント
 		switch (scene) // シーンごとに処理を分岐
@@ -71,6 +73,8 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 			break;
 		case PLAY: // ゲームプレイ画面
 			MovePlayer(); // 自分の操作
+			MoveAttack(); // 攻撃の制御
+			MoveAttack2(); // 攻撃の制御
 			if (distance == STAGE_DISTANCE)
 			{
 				srand(stage); // ステージのパターンを決める
@@ -118,7 +122,6 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 			break;
 
 		case CLEAR: // ステージクリア
-			MovePlayer(); // 自分の処理
 			if (timer == FPS * 3)
 			{
 				PlaySoundMem(jinClear, DX_PLAYTYPE_BACK); // ジングル出力
@@ -164,11 +167,12 @@ void InitGame(void)
 	// 自分とその攻撃の画像の読み込み
 	imgSamurai = LoadGraphWithCheck("素材フォルダー/Samurai.png");
 	imgAttack = LoadGraphWithCheck("素材フォルダー/Attack.png");
+	imgAttack2 = LoadGraphWithCheck("素材フォルダー/Attack2.png");
 	// 敵の画像の読み込み
 	
 	for (int i = 0; i < IMG_ENEMY_MAX; i++)
 	{
-		char file[] = "image/enemy*.png";
+		char file[] = "素材フォルダー/Enemy*.png";
 		file[11] = (char)('0' + i);
 		imgEnemy[i] = LoadGraphWithCheck(file);
 	}
@@ -214,11 +218,14 @@ void MovePlayer(void)
 {
 	static int count = 0;
 	static int oldAKey = 0;
+	static int oldSKey = 0;
 	int aKey;
+	int sKey;
 	count++;
 	if (noDamageFrame > 0) { noDamageFrame--; } // 無敵時間のカウント
 	
 	aKey = CheckHitKey(KEY_INPUT_A);
+	sKey = CheckHitKey(KEY_INPUT_S);
 
 	if (aKey == TRUE && oldAKey == FALSE)
 	{
@@ -247,6 +254,31 @@ void MovePlayer(void)
 		}
 		return;
 	}
+	if (sKey == TRUE && oldSKey == FALSE)
+	{
+		isAttacking2 = TRUE;
+		player.attackTimer = 0;
+	
+		SetAttack2();
+	}
+	oldSKey = sKey;
+	if (isAttacking2)
+	{
+		int ix;
+		ix = (player.attackTimer+6) * 64;			
+		if (noDamageFrame % 4 < 2) { DrawRectExtendGraph(player.x - 64, player.y - 52, player.x + 64, player.y + 52, ix, 0, 64, 52, imgSamurai, TRUE); }
+		DrawBox(0, 0, WIDTH, HEIGHT, 0x000000, TRUE);
+		if (count % 35 == 0)
+		{
+			player.attackTimer++;
+			if (player.attackTimer >= 2)
+			{
+				player.attackTimer = 0;
+				isAttacking2 = FALSE;
+			}
+		}
+		return;
+	}
 	if (player.hp > 0 && !isAttacking)
 	{
 		int ix;
@@ -271,10 +303,23 @@ void SetAttack(void)
 		{
 			attack[i].x = x;
 			attack[i].y = y;
-			attack[i].vx = 10;
-			attack[i].vy = 0;
 			attack[i].state = 1;
 			attack[i].timer = 0;
+			break;
+		}
+	}
+	PlaySoundMem(seAttack, DX_PLAYTYPE_BACK); // 効果音
+}
+
+void SetAttack2(void)
+{
+	for (int i = 0; i < ATTACK_MAX; i++) {
+		if (attack2[i].state == 0)
+		{
+			attack2[i].x = WIDTH / 2;
+			attack2[i].y = HEIGHT / 2;
+			attack2[i].state = 1;
+			attack2[i].timer = 0;
 			break;
 		}
 	}
@@ -285,13 +330,39 @@ void SetAttack(void)
 
 void MoveAttack(void)
 {
+	static int count = 0;
+	count++;
 	for (int i = 0; i < ATTACK_MAX; i++)
 	{
+		int ix = attack[i].timer * 128;
 		if (attack[i].state == 0) { continue; } // 空いている配列なら処理しない
 		attack[i].x += attack[i].vx; // ┬座標を変化させる
 		attack[i].y += attack[i].vy; // ┘
-		DrawRectExtendGraph(attack[i].x - 128, attack[i].y - 10, attack[i].x + 128, attack[i].y + 10, 0, 0, 128, 10, imgAttack, TRUE); // 攻撃の描画
-		if (attack[i].x < WIDTH+100) { attack[i].state = 0; } // 画面外に出たら、存在しない状態にする
+		DrawRectExtendGraph(attack[i].x - 128, attack[i].y - 76, attack[i].x + 128, attack[i].y + 76, ix, 0, 128, 76, imgAttack, TRUE); // 攻撃の描画
+		if (count % 5 == 0)
+		{
+			attack[i].timer++;
+			if (attack[i].timer >= 3) { attack[i].state = 0; }
+		}
+	}
+}
+
+void MoveAttack2(void)
+{
+	static int count = 0;
+	count++;
+	for (int i = 0; i < ATTACK_MAX; i++)
+	{
+		int ix = attack2[i].timer * WIDTH;
+		if (attack2[i].state == 0) { continue; } // 空いている配列なら処理しない
+		attack2[i].x += attack2[i].vx; // ┬座標を変化させる
+		attack2[i].y += attack2[i].vy; // ┘
+		DrawRectGraph(attack2[i].x - WIDTH/2, attack2[i].y - HEIGHT/2,ix, 0, WIDTH, HEIGHT, imgAttack2, TRUE); // 攻撃の描画
+		if (count % 5 == 0)
+		{
+			attack2[i].timer++;
+			if (attack2[i].timer >= 8) { attack2[i].state = 0; }
+		}
 	}
 }
 
@@ -330,7 +401,7 @@ void MoveEnemy(void)
 			else if (enemy[i].vy > 0)
 			{
 				enemy[i].vx = 8;
-				enemy[i].vy = -4;
+				enemy[i].vy = 0;
 			}
 		}
 		enemy[i].x += enemy[i].vx; // ┬敵機の移動
