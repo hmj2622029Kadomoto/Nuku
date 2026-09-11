@@ -22,12 +22,14 @@ int distance = 0; // ステージ終端までの距離
 int stage = 1; // ステージ
 int score = 0; // スコア
 int hisco = 0; // ハイスコア
+int losco = 0; // ロースコア
 int noDamageFrame; // 無敵状態
 int scene = TITLE; // シーンを管理
 int timer = 0; // 時間の進行を管理
 bool isAttacking = false;
 bool isAttacking2 = false;
 
+struct OBJECT imgTitle1, imgTitle2; // タイトルの画像
 struct OBJECT player; // 自分用の構造体変数
 struct OBJECT attack[ATTACK_MAX]; // 自分用の構造体変数
 struct OBJECT attack2[ATTACK_MAX]; // 自分用の構造体変数
@@ -80,31 +82,32 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 				srand(stage); // ステージのパターンを決める
 				PlaySoundMem(bgm,DX_PLAYTYPE_LOOP); // BGMループを出力
 			}
-			if (distance > 0) { distance; }
+			if (distance > 0 && player.hp) { distance--; }
 			if (300 < distance && distance % 20 == 0) // ザコ1と2の出現
 			{
-				int x = 100 + rand() % (WIDTH - 200);
-				int y = -50;
+				int x = WIDTH;
+				int y = HEIGHT * 3 / 5;
 				int e = rand() % 2;
-				if (e == ENE_ZAKO1) { SetEnemy(x, y, 0, 3, ENE_ZAKO1, imgEnemy[ENE_ZAKO1], 1); }
-				if (e == ENE_ZAKO2) {
-					int vx = 0;
-					if (player.x < x - 50) { vx = -3; }
-					if (player.x > x + 50) { vx = 3; }
-					SetEnemy(x, -100, vx, 5, ENE_ZAKO2, imgEnemy[ENE_ZAKO2], 1); 
-				}
+				if (e == ENE_ZAKO1) { SetEnemy(x, y, -3, 0, 1); }
+				if (e == ENE_ZAKO2) { SetEnemy(x, -100, 0, 5, 1); }
 			}
 			if (300 < distance && distance < 900 && distance % 30 == 0) // ザコ3の出現
 			{
 				int x = 100 + rand() % (WIDTH - 200);
 				int y = -50;
 				int vy = 40 + rand() % 20;
-				SetEnemy(x, -100, 0, vy, ENE_ZAKO3, imgEnemy[ENE_ZAKO3], 1);
+				SetEnemy(x, -100, 0, vy, 1);
 			}
 			if (player.hp == 0)
 			{
 				StopSoundMem(bgm); // BGM停止
 				scene = OVER;
+				timer = 0;
+				break;
+			}
+			if (distance <= 0)
+			{
+				scene = CLEAR;
 				timer = 0;
 				break;
 			}
@@ -142,8 +145,9 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
 		// スコア、ハイスコア、ステージ数の表示
 		DrawText(10, 10, "SCORE %07d", score, 0xffffff, 30);
-		DrawText(WIDTH - 220, 10, "HI-SC %07d", hisco, 0xffffff, 30);
-		DrawText(WIDTH - 145, HEIGHT - 40, "STAGE %02d", stage, 0xffffff, 30);
+		DrawText(WIDTH - 220, 10, "HI-SC %4d", hisco, 0xffffff, 30);
+		DrawText(WIDTH - 220, 40, "LO-SC %4d", losco, 0xffffff, 30);
+		DrawText(WIDTH - 145, HEIGHT - 40, "STAGE %2d", stage, 0xffffff, 30);
 
 		ScreenFlip(); // 裏画面の内容を表画面に反映させる
 		WaitTimer(1000 / FPS); // 一定時間待つ
@@ -164,18 +168,19 @@ void InitGame(void)
 	imgGra = LoadGraphWithCheck("素材フォルダー/グラデーション.png");
 	imgSky = LoadGraphWithCheck("素材フォルダー/Sky.png");
 	imgMoon = LoadGraphWithCheck("素材フォルダー/Moon.png");
+	imgTitle1 = LoadGraphWithCheck("素材フォルダー/TITLE.png");
+	imgTitle2 = LoadGraphWithCheck("素材フォルダー/TITLE2.png");
 	// 自分とその攻撃の画像の読み込み
 	imgSamurai = LoadGraphWithCheck("素材フォルダー/Samurai.png");
 	imgAttack = LoadGraphWithCheck("素材フォルダー/Attack.png");
 	imgAttack2 = LoadGraphWithCheck("素材フォルダー/Attack2.png");
 	// 敵の画像の読み込み
 	
-	for (int i = 0; i < IMG_ENEMY_MAX; i++)
-	{
-		char file[] = "素材フォルダー/Enemy*.png";
-		file[11] = (char)('0' + i);
-		imgEnemy[i] = LoadGraphWithCheck(file);
-	}
+	imgEnemy[ENE_ZAKO1] = LoadGraphWithCheck("素材フォルダー/Enemy0.png");
+	imgEnemy[ENE_ZAKO2] = LoadGraphWithCheck("素材フォルダー/Enemy1.png");
+	imgEnemy[ENE_ZAKO3] = LoadGraphWithCheck("素材フォルダー/Enemy2.png");
+	imgEnemy[ENE_ZAKO4] = LoadGraphWithCheck("素材フォルダー/Enemy3.png");
+	imgEnemy[ENE_ZAKO5] = LoadGraphWithCheck("素材フォルダー/Enemy4.png");
 
 	bgm = LoadSoundMemWithCheck("sound/.mp3");
 	bgm = LoadSoundMemWithCheck("sound/.mp3");
@@ -195,10 +200,10 @@ void InitVariable(void)
 	player.x = WIDTH / 10;
 	player.y = HEIGHT * 3 / 5;
 	player.hp = PLAYER_HP_MAX;
-	GetGraphSize(imgSamurai, &player.wid, &player.hei); // 自機の画像の幅と高さを代入
+	player.wid = 64 * 2;
+	player.hei = 52;
 	for (int i = 0; i < ENEMY_MAX; i++) { enemy[i].state = 0; } // 全ての敵を存在しない状態にする
 	score = 0;
-	stage = 1;
 	noDamageFrame = 0;
 	distance = STAGE_DISTANCE;
 }
@@ -231,6 +236,9 @@ void MovePlayer(void)
 	{
 		isAttacking = TRUE;
 		player.attackTimer = 0;
+		score -= 50;
+		if (score < losco) { losco = score; } // ロースコアの更新
+
 	
 		SetAttack();
 	}
@@ -254,10 +262,11 @@ void MovePlayer(void)
 		}
 		return;
 	}
-	if (sKey == TRUE && oldSKey == FALSE)
+	if (sKey == TRUE && oldSKey == FALSE&&score>=1000)
 	{
 		isAttacking2 = TRUE;
 		player.attackTimer = 0;
+		score -= 1000;
 	
 		SetAttack2();
 	}
@@ -265,10 +274,10 @@ void MovePlayer(void)
 	if (isAttacking2)
 	{
 		int ix;
-		ix = (player.attackTimer+6) * 64;			
+		ix = (player.attackTimer+5) * 64;			
 		if (noDamageFrame % 4 < 2) { DrawRectExtendGraph(player.x - 64, player.y - 52, player.x + 64, player.y + 52, ix, 0, 64, 52, imgSamurai, TRUE); }
-		DrawBox(0, 0, WIDTH, HEIGHT, 0x000000, TRUE);
-		if (count % 35 == 0)
+
+		if (count % 90 == 0)
 		{
 			player.attackTimer++;
 			if (player.attackTimer >= 2)
@@ -283,7 +292,7 @@ void MovePlayer(void)
 	{
 		int ix;
 		ix = player.idleTimer*64;
-		if (noDamageFrame % 4 < 2) { DrawRectExtendGraph(player.x - 64, player.y - 52, player.x + 64, player.y + 52, ix, 0, 64, 52, imgSamurai, TRUE); } // 自機の描画
+		if (noDamageFrame % 4 < 2) { DrawRectExtendGraph(player.x - 64, player.y - 52, player.x + 64, player.y + 52, ix, 0, 64, 52, imgSamurai, TRUE); } // 自分の描画
 		if (count % 30 == 0)
 		{
 			player.idleTimer++;
@@ -305,6 +314,8 @@ void SetAttack(void)
 			attack[i].y = y;
 			attack[i].state = 1;
 			attack[i].timer = 0;
+			attack[i].wid = 128*2;
+			attack[i].hei = 76*2;
 			break;
 		}
 	}
@@ -320,6 +331,8 @@ void SetAttack2(void)
 			attack2[i].y = HEIGHT / 2;
 			attack2[i].state = 1;
 			attack2[i].timer = 0;
+			attack2[i].wid = WIDTH;
+			attack2[i].hei = HEIGHT;
 			break;
 		}
 	}
@@ -368,7 +381,7 @@ void MoveAttack2(void)
 
 // 敵をセットする
 
-int SetEnemy(int x, int y, int vx, int vy, int ptn, int img, int hp)
+int SetEnemy(int x, int y, int vx, int vy,int hp)
 {
 	for (int i = 0; i < ENEMY_MAX; i++) {
 		if (enemy[i].state == 0) {
@@ -377,9 +390,6 @@ int SetEnemy(int x, int y, int vx, int vy, int ptn, int img, int hp)
 			enemy[i].vx = vx;
 			enemy[i].vy = vy;
 			enemy[i].state = 1;
-			enemy[i].pattern = ptn;
-			enemy[i].image = img;
-			GetGraphSize(img, &enemy[i].wid, &enemy[i].hei); // 画像の幅と高さを代入
 			return i;
 		}
 	}
@@ -390,9 +400,21 @@ int SetEnemy(int x, int y, int vx, int vy, int ptn, int img, int hp)
 
 void MoveEnemy(void)
 {
+	static int count = 0;
+	count++;
 	for (int i = 0; i < ENEMY_MAX; i++) {
+		int ix = enemy[i].timer * 63;
 		if (enemy[i].state == 0) { continue; } // 空いている配列なら処理しない
-		if (enemy[i].pattern == ENE_ZAKO3) // ザコ機3
+		if (enemy[i].pattern == ENE_ZAKO1)
+		{
+			DrawRectExtendGraph(enemy[i].x - 63, enemy[i].y - 57, enemy[i].x + 63, enemy[i].y + 57, ix, 0, 63, 57, imgEnemy[ENE_ZAKO1], TRUE); // 攻撃の描画
+			if (count % 10 == 0)
+			{
+				enemy[i].timer++;
+				if (enemy[i].timer >= 2) { enemy[i].timer = 0; }
+			}
+		}
+		if (enemy[i].pattern == ENE_ZAKO3) // ザコ敵3
 		{
 			if (enemy[i].vy > 1) // 減速
 			{
@@ -415,7 +437,17 @@ void MoveEnemy(void)
 			if (attack[j].state == 0) { continue; }
 			int dx = abs((int)(enemy[i].x - attack[j].x)); // ┬中心座標間のピクセル数
 			int dy = abs((int)(enemy[i].y - attack[j].y)); // ┘
-			if (dx < enemy[i].wid / 2 + attack[j].wid / 2 && dy < enemy[i].hei / 2 + attack[j].hei / 2)
+			if (dx < enemy[i].wid/2 + attack[j].wid/2 && dy < enemy[i].hei/2 + attack[j].hei/2)
+			{
+				DamageEnemy(i,1);
+			}
+		}
+		for (int j = 0; j < ATTACK_MAX; j++)
+		{
+			if (attack2[j].state == 0) { continue; }
+			int dx = abs((int)(enemy[i].x - attack2[j].x)); // ┬中心座標間のピクセル数
+			int dy = abs((int)(enemy[i].y - attack2[j].y)); // ┘
+			if (dx < enemy[i].wid/2 + attack2[j].wid/2 && dy < enemy[i].hei/2 + attack2[j].hei/2)
 			{
 				DamageEnemy(i,10);
 			}
@@ -424,9 +456,9 @@ void MoveEnemy(void)
 		{
 			int dx = abs((int)(enemy[i].x - player.x)); // ┬中心座標間のピクセル数
 			int dy = abs((int)(enemy[i].y - player.y)); // ┘
-			if (dx < enemy[i].wid / 2 + player.wid / 2 && dy < enemy[i].hei / 2 + player.hei / 2)
+			if (dx < enemy[i].wid/2 + player.wid/2 && dy < enemy[i].hei/2 + player.hei/2)
 			{
-				if (player.hp > 0) { player.hp--; } // シールドを減らす
+				if (player.hp > 0) { player.hp-=10; } // HPを減らす
 				noDamageFrame = FPS * 2; // 無敵状態をセット
 			}
 		}
@@ -483,6 +515,6 @@ int LoadGraphWithCheck(const char* file)
 int LoadSoundMemWithCheck(const char* file)
 {
 	int res = LoadSoundMem(file);
-	if (res == -1) { MessageBox(GetMainWindowHandle(), file, "画像の読み込みに失敗", MB_OK | MB_ICONSTOP); }
+	if (res == -1) { MessageBox(GetMainWindowHandle(), file, "音の読み込みに失敗", MB_OK | MB_ICONSTOP); }
 	return res;
 }

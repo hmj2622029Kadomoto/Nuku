@@ -27,7 +27,7 @@ void SetAttack(void);
 void MoveAttack(void);
 void SetAttack2(void);
 void MoveAttack2(void);
-int SetEnemy(int x, int y, int vx, int vy, int ptn, int img, int hp);
+int SetEnemy(int x, int y, int vx, int vy, int hp);
 void MoveEnemy(void);
 void DamageEnemy(int n, int dmg);
 void DrawText(int x, int y, const char* txt, int val, int col, int siz);
